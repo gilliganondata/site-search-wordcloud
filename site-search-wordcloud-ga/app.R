@@ -222,6 +222,7 @@ server <- function(input, output) {
     # 10,000 rows to keep from running into memory limitation issues.
     if(nrow(wrdcld_data) > 10000){
       wrdcld_data_sample <- na.omit(as.data.frame(wrdcld_data$'searchKeyword'[sample(1:nrow(wrdcld_data), 10000)]))
+      colnames(wrdcld_data_sample) <- "searchKeyword"
     } else {
       wrdcld_data_sample <- wrdcld_data
     }
