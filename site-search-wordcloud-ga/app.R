@@ -64,7 +64,8 @@ ui <- fluidPage(
                         target="_blank","Sébastien Brodeur"),
   ", with some additional inspiration from ",
   tags$a(href="https://nanalytics.wordpress.com/2014/07/14/who-what-where-when-why-how-harnessing-the-power-of-internal-site-search/",
-         target="_blank","Nancy Koons"),".",
+         target="_blank","Nancy Koons"),". The source code for this application is available",
+  tags$a(href="https://github.com/gilliganondata/site-search-wordcloud", target="_blank", "on Github"),".",
   
   tags$hr(),
   
@@ -113,18 +114,21 @@ ui <- fluidPage(
     ),
     
     # All of the actual output. This is just four tabs, which could easily be added onto if
-    # other ways of exploring this same data are conceived.
+    # other ways of exploring this same data are conceived. The bulk of the "code" for this
+    # is just getting the descriptive text into each tab.
     mainPanel(
       tags$h4("Site Search Term Usage"),
       
       tabsetPanel(
-        tabPanel("Word Cloud", tags$br(), "To remove specific terms from the word cloud, enter them in the ",
+        tabPanel("Word Cloud", tags$br(), "To remove specific terms from the word cloud, enter them in the",
                  "box in the sidebar to the left (this will remove the words from both the word cloud ",
                  "and the ", tags$strong("Frequency Table"), ".", tags$br(), " ",
                  plotOutput("word_cloud")),
         tabPanel("Frequency Table", tags$br(),
                  "The table below shows the frequency of each individual keyword (stemmed) ",
-                 "that was included in searches.", tags$br(), " ",
+                 "that was included in searches. To remove specific terms from the frequency table, enter",
+                 "them in the box in the sidebar to the left (this will remove the words from both the",
+                 "frequency table and the", tags$strong("Word Cloud"), ".", tags$p(" "),
                  DT::dataTableOutput("freq_table")),
         tabPanel("Questions in Search", tags$br(),
                  "The table below shows (generally long-tail) searches that were likely ",
@@ -132,12 +136,12 @@ ui <- fluidPage(
                  "as to very specific things for which visitors are looking for content. This ",
                  "way of exploring search data comes straight from ",
                  tags$a(href="https://nanalytics.wordpress.com/2014/07/14/who-what-where-when-why-how-harnessing-the-power-of-internal-site-search/",
-                        target="_blank","Nancy Koons"), ".", tags$br(), " ",
+                        target="_blank","Nancy Koons"), ".", tags$p(" "),
                  DT::dataTableOutput("question_searches")),
         tabPanel("Raw Google Analytics Results", tags$br(),
                  "The table below shows the search data as it was pulled from Google Analytics. ",
                  "This would match what you see if you view the ", tags$strong("Search Terms"), " report for the ",
-                 "same view and same timeframe in Google Analytics.", tags$br(), " ",
+                 "same view and same timeframe in Google Analytics.", tags$p(" "),
                  DT::dataTableOutput("raw_data"))
       )
     )
@@ -175,16 +179,16 @@ server <- function(input, output) {
     end_date <- as.character(Sys.Date()-1)
     
     # Pull the data. Note this limits the results to 10000 rows. You
-    # can probably fiddle around with that if need be. 
-    ga_data <- with_shiny(google_analytics,
-                          id = view_id(),
-                          start = start_date,
-                          end = end_date,
+    # can probably fiddle around with that if need be -- possible just
+    # set max = -1 and see if it borks on you.
+    ga_data <- with_shiny(google_analytics_4,
+                          viewId = view_id(),
+                          date_range = c(start_date,end_date),
                           metrics = "searchUniques",
                           dimensions = "searchKeyword",
-                          sort = "-ga:searchUniques",
-                          samplingLevel = "HIGHER_PRECISION",
-                          max_results = 10000,
+                          order = order_type("searchUniques", "DESCENDING", "VALUE"),
+                          anti_sample = TRUE,
+                          max = 10000,
                           shiny_access_token = access_token())
   })
   
@@ -297,24 +301,27 @@ server <- function(input, output) {
   
   ############################
   # Build the output for the frequency table
-  output$freq_table <- DT::renderDataTable(
-    create_freq_table(),
-    rownames = FALSE,
-    options = list(
-      pageLength = 10
-      # columnDefs = list(list(name = '(Stemmed) Term', targets = 1),
-      #                   list(name = 'Unique Searches', targets = 2))
-    ))
+  output$freq_table <- DT::renderDataTable({
+    
+    freq_table <- create_freq_table()
+    
+    # Rename the column headings
+    colnames(freq_table) <- c("(Stemmed) Term", "Unique Searches")
+    
+    # Repeat the actual table so we don't just output the column names
+    freq_table
+    
+    },
+    rownames = FALSE)
   
   ############################
   # Output a filtered view of the base data limited to searches that
-  # include "specific question" words. The regEx doesn't really need
-  # the parentheses, but it was easier to show that the spaces are being
-  # included by including them.
+  # include "specific question" words. The regEx could probably be a bit
+  # cleaner, but it's just trying to minimize false positives and false negatives.
   output$question_searches <- DT::renderDataTable({
     
     ga_data <- get_base_data() %>% 
-      filter(grepl("(who )|(what )|(why )|(where )|(how )", searchKeyword))
+      filter(grepl("(?i)(^(who|what|why|where|how) )|( (who|what|why|where|how) )", searchKeyword))
     
     # Rename the column headings
     colnames(ga_data) <- c("Question-Like Searches","Unique Searches")
