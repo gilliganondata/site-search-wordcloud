@@ -30,9 +30,13 @@ library("wordcloud")
 # options("googleAuthR.webapp.client_id" = "[GOOGLE APP CLIENT ID]")
 # options("googleAuthR.webapp.client_secret" = "[GOOGLE APP CLIENT SECRET]")
 
+options("googleAuthR.webapp.client_id" = "408865981365-2hmd6jqjg3ndd07doueh53v1of1hq1ra.apps.googleusercontent.com")
+options("googleAuthR.webapp.client_secret" = "lhUY1I1gDIyiphYhMrd_rVfS")
+
 # All we need to do is read the GA data, so we can limit the scope pretty
 # severely.
-options("googleAuthR.scopes.selected" = "https://www.googleapis.com/auth/analytics.readonly")
+options("googleAuthR.scopes.selected" = c("https://www.googleapis.com/auth/analytics",
+                                          "https://www.googleapis.com/auth/analytics.readonly"))
 
 ####################
 # Set up the different options for interaction
